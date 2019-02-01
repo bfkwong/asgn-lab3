@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
-#define MAX_CHAR 255
+#include <string.h>
+#define MAX_CHAR 256
 
 struct node {
     int occurance;
@@ -10,24 +11,35 @@ struct node {
     struct node *right;
 };
 
+struct listNode {
+    int data;
+    struct listNode *next;
+};
+
 /* Function Declarations */
 void insertSorted(struct node **head, int occur, int chara);
 struct node *combineNodes(struct node *left, struct node *right);
 void insertNodeSorted(struct node **headPtr, struct node **toAdd);
 void removeNode(struct node **head, int character);
 void printList(struct node *head);
+int **createHuffmanCode(int **huffmanCodes, struct node *head);
+int **huffmanCodeHelper(int **huffmanCodes, struct node *cur, struct node *prev, int *code, int depth);
 
 int main(int argc, char *argv[]) {
 
     FILE *inFile;
     int *hTable;
-    int curChar, i, lc;
+    int *huffmanCodes[MAX_CHAR];
+    int curChar, i, j;
     struct node *head, *temp;
 
     head = NULL;
 
     inFile = fopen(argv[1], "r");
     hTable = (int *)calloc(MAX_CHAR, sizeof(int));
+
+    for (i=0; i<MAX_CHAR; i++)
+         huffmanCodes[i] = (int *)calloc(MAX_CHAR, sizeof(int));
 
     while ((curChar = fgetc(inFile)) != EOF) {
         hTable[curChar] += 1;
@@ -40,16 +52,57 @@ int main(int argc, char *argv[]) {
     }
 
     while(head->next != NULL) {
-        lc += 1;
         temp = combineNodes(head, head->next);
-        
+
         removeNode(&head, head->character);
         removeNode(&head, head->character);
-        
+
         insertNodeSorted(&head, &temp);
     }
-    
+
+    createHuffmanCode(huffmanCodes, head);
+
+    for(i=0; i<MAX_CHAR; i++) {
+        if (huffmanCodes[i][0] != 0) {
+            printf("0x%02x: ", i);
+            /********* POSSIBLE TROUBLE ********/
+            for(j=0; huffmanCodes[i][j]!=0; j++) {
+                printf("%c", huffmanCodes[i][j]);
+            }
+            printf("\n");
+        }
+    }
+
     return 0;
+}
+
+int **createHuffmanCode(int **huffmanCodes, struct node *head) {
+    int *code;
+    if(head == NULL) {
+        code = (int *)calloc(MAX_CHAR, sizeof(int));
+        return huffmanCodes;
+    }
+    code = (int *)calloc(MAX_CHAR, sizeof(int));
+    return huffmanCodeHelper(huffmanCodes, head, NULL, code, 0);
+}
+
+int **huffmanCodeHelper(int **huffmanCodes, struct node *cur, struct node *prev, int *code, int depth) {
+    if(cur->left == NULL && cur->right == NULL) {
+        int i;
+        i=0;
+        if (prev == NULL)
+            return huffmanCodes;
+        while(i < depth) {
+          huffmanCodes[cur->character][i] = code[i];
+          i += 1;
+        }
+    } else if (cur->left && cur->right) {
+        code[depth] = '0';
+        huffmanCodes = huffmanCodeHelper(huffmanCodes, cur->left, cur, code, depth+1);
+        code[depth] = '1';
+        huffmanCodes = huffmanCodeHelper(huffmanCodes, cur->right, cur, code, depth+1);
+    }
+    return huffmanCodes;
 }
 
 void insertSorted(struct node **headPtr, int occur, int chara) {
@@ -70,7 +123,7 @@ void insertSorted(struct node **headPtr, int occur, int chara) {
     }
 
     list = head;
-    while(list->next != NULL && list->next->occurance < occur) {
+    while(list->next != NULL && list->next->occurance <= occur) {
         list = list -> next;
     }
     temp = list->next;
@@ -88,7 +141,7 @@ void insertNodeSorted(struct node **headPtr, struct node **toAdd) {
     int position;
 
     head = *headPtr;
-    
+
     if(head == NULL) {
         (*headPtr) = *toAdd;
         return;
@@ -100,7 +153,7 @@ void insertNodeSorted(struct node **headPtr, struct node **toAdd) {
     }
 
     list = head;
-    while(list->next != NULL && list->next->occurance <= (*toAdd)->occurance) {
+    while(list->next != NULL && list->next->occurance < (*toAdd)->occurance) {
         position += 1;
         list = list -> next;
     }
@@ -109,8 +162,7 @@ void insertNodeSorted(struct node **headPtr, struct node **toAdd) {
     list->next = *toAdd;
     list->next->next = temp;
 
-    return ;
-
+    return;
 }
 
 
@@ -130,7 +182,7 @@ struct node *combineNodes(struct node *left, struct node *right) {
 void removeNode(struct node **head, int character){
     struct node *temp;
     temp = *head;
-    
+
     if (temp->character == character) {
         (*head) = temp->next;
         return;
